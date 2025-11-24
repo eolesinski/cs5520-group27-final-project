@@ -7,8 +7,10 @@
 
 import Foundation
 
-struct ToDoItem: Codable {
+struct ToDoItem {
     let id: String
     let title: String
-    let details: String 
+    let details: String
+    var isPurchased: Bool = false
+    var purchasedPrice: String? = nil
 }

@@ -73,6 +73,10 @@ class TodoDetailViewController: UIViewController, CLLocationManagerDelegate {
         
         claimButton.addTarget(self, action: #selector(didTapClaim), for: .touchUpInside)
         mapButton.addTarget(self, action: #selector(didTapMap), for: .touchUpInside)
+        
+        // Add tap gesture to dismiss keyboard
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        view.addGestureRecognizer(tapGesture)
     }
     
     func setupUI() {
@@ -134,11 +138,37 @@ class TodoDetailViewController: UIViewController, CLLocationManagerDelegate {
     }
     
     @objc func didTapClaim() {
-        guard let price = priceField.text, !price.isEmpty else { return }
+        // Validate that price field is not empty
+        guard let priceText = priceField.text, !priceText.isEmpty else {
+            showAlert(title: "Missing Price", message: "Please enter the price you paid for this item.")
+            return
+        }
+        
+        // Validate that price is a valid number
+        guard let priceValue = Double(priceText), priceValue >= 0 else {
+            showAlert(title: "Invalid Price", message: "Please enter a valid price (e.g., 5.50).")
+            return
+        }
+        
+        // Optional: Validate reasonable price range
+        guard priceValue <= 10000 else {
+            showAlert(title: "Price Too High", message: "Please enter a price less than $10,000.")
+            return
+        }
         
         let lat = locationManager.location?.coordinate.latitude
         let lon = locationManager.location?.coordinate.longitude
         
-        onClaimCompleted?(price, lat, lon)
+        onClaimCompleted?(priceText, lat, lon)
+    }
+    
+    @objc func dismissKeyboard() {
+        view.endEditing(true)
+    }
+    
+    func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }

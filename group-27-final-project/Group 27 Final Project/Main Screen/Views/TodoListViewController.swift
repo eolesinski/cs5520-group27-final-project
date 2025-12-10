@@ -168,12 +168,31 @@ class TodoListViewController: UITableViewController {
     }
     
     @objc func signOutTapped() {
-        do {
-            try Auth.auth().signOut()
-            self.dismiss(animated: true, completion: nil)
-            
-        } catch let signOutError as NSError {
-            print("Error signing out: %@", signOutError)
-        }
+        // Show confirmation alert
+        let alert = UIAlertController(title: "Sign Out", message: "Are you sure you want to sign out?", preferredStyle: .alert)
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        alert.addAction(UIAlertAction(title: "Sign Out", style: .destructive) { [weak self] _ in
+            do {
+                try Auth.auth().signOut()
+                
+                // Dismiss to the root view controller (LoginViewController)
+                // This works whether user came from Login or Register
+                self?.view.window?.rootViewController?.dismiss(animated: true, completion: nil)
+                
+            } catch let signOutError as NSError {
+                print("Error signing out: \(signOutError)")
+                self?.showAlert(title: "Sign Out Failed", message: "Could not sign out. Please try again.")
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }

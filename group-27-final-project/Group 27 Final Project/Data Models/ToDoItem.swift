@@ -1,10 +1,3 @@
-//
-//  ToDoItem.swift
-//  Group 27 Final Project
-//
-//
-//
-
 import Foundation
 import FirebaseFirestore
 
@@ -15,6 +8,8 @@ struct ToDoItem {
     var isPurchased: Bool
     var purchasedPrice: Double?
     var purchasedBy: String?
+    var latitude: Double?
+    var longitude: Double?
     
     init(dictionary: [String: Any]) {
         self.id = dictionary["id"] as? String ?? UUID().uuidString

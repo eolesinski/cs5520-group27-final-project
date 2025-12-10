@@ -1,11 +1,3 @@
-
-//
-//  LoginView.swift
-//  Group 27 Final Project
-//
-//
-//
-
 import UIKit
 
 class LoginView: UIView {
@@ -30,7 +22,7 @@ class LoginView: UIView {
     
     func setupTitleLabel() {
         titleLabel = UILabel()
-        titleLabel.text = "Group Shopping List"
+        titleLabel.text = "HouseTab"
         titleLabel.font = .boldSystemFont(ofSize: 32)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false

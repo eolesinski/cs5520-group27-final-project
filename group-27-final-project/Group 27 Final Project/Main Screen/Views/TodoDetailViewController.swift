@@ -1,165 +1,144 @@
-//
-//  TodoDetailViewController.swift
-//  Group 27 Final Project
-//
-//  
-//
-
-
 import UIKit
+import CoreLocation
+import MapKit
 
-class TodoDetailViewController: UIViewController {
+class TodoDetailViewController: UIViewController, CLLocationManagerDelegate {
 
-    // MARK: - Data Variables
-    var todoText: String?
-    var todoDetails: String?
+    var todoText: String = ""
+    var todoDetails: String = ""
     var isPurchased: Bool = false
     var purchasedPrice: String?
+    var existingLat: Double?
+    var existingLon: Double?
+    var onClaimCompleted: ((String, Double?, Double?) -> Void)?
     
-    var onClaimCompleted: ((String) -> Void)?
-
+    let locationManager = CLLocationManager()
+    
     // MARK: - UI Elements
-    
-    let titleLabel: UILabel = {
+    private let labelTitle: UILabel = {
         let label = UILabel()
-        label.font = .boldSystemFont(ofSize: 22)
-        label.textAlignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-    
-    let detailsLabel: UILabel = {
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.textAlignment = .center
-        label.textColor = .darkGray
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-    
-    let statusLabel: UILabel = {
-        let label = UILabel()
-        label.font = .italicSystemFont(ofSize: 18)
-        label.textColor = .systemGreen
-        label.textAlignment = .center
+        label.font = .boldSystemFont(ofSize: 24)
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
-    let priceTextField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "Enter Price (e.g. 5.99)"
-        tf.borderStyle = .roundedRect
-        tf.keyboardType = .decimalPad
-        tf.textAlignment = .center
-        tf.translatesAutoresizingMaskIntoConstraints = false
-        return tf
+    private let labelDetails: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16)
+        label.textColor = .gray
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }()
     
-    let claimButton: UIButton = {
+    private let priceField: UITextField = {
+        let field = UITextField()
+        field.placeholder = "Enter Price (e.g. 5.50)"
+        field.borderStyle = .roundedRect
+        field.keyboardType = .decimalPad
+        field.translatesAutoresizingMaskIntoConstraints = false
+        return field
+    }()
+    
+    private let mapButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Mark as Purchased", for: .normal)
-        btn.backgroundColor = .systemGreen
+        btn.setTitle("📍 View Purchase Location", for: .normal)
+        btn.isHidden = true
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
+    
+    private let claimButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setTitle("Save & Claim (with GPS)", for: .normal)
+        btn.backgroundColor = .systemBlue
         btn.setTitleColor(.white, for: .normal)
         btn.layer.cornerRadius = 10
-        btn.titleLabel?.font = .boldSystemFont(ofSize: 18)
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
 
-    // MARK: - Lifecycle
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         title = "Item Details"
         
-        titleLabel.text = todoText
-        detailsLabel.text = todoDetails
+        setupUI()
+        loadData()
         
-        view.addSubview(titleLabel)
-        view.addSubview(detailsLabel)
+        locationManager.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
         
-        // CONDITIONAL UI LOGIC
-        if isPurchased {
-            statusLabel.text = "This item has been purchased for: $\(purchasedPrice ?? "0.00")"
-            view.addSubview(statusLabel)
-        } else {
-            view.addSubview(priceTextField)
-            view.addSubview(claimButton)
-            claimButton.addTarget(self, action: #selector(didTapClaim), for: .touchUpInside)
-        }
-        
-        setupConstraints()
+        claimButton.addTarget(self, action: #selector(didTapClaim), for: .touchUpInside)
+        mapButton.addTarget(self, action: #selector(didTapMap), for: .touchUpInside)
     }
     
-    // MARK: - Layout
-    
-    func setupConstraints() {
+    func setupUI() {
+        view.addSubview(labelTitle)
+        view.addSubview(labelDetails)
+        view.addSubview(priceField)
+        view.addSubview(mapButton)
+        view.addSubview(claimButton)
+        
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            labelTitle.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            labelTitle.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            labelTitle.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            detailsLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            detailsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            detailsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            labelDetails.topAnchor.constraint(equalTo: labelTitle.bottomAnchor, constant: 10),
+            labelDetails.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            labelDetails.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            priceField.topAnchor.constraint(equalTo: labelDetails.bottomAnchor, constant: 30),
+            priceField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            priceField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            mapButton.topAnchor.constraint(equalTo: priceField.bottomAnchor, constant: 20),
+            mapButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+            claimButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
+            claimButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            claimButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            claimButton.heightAnchor.constraint(equalToConstant: 50)
         ])
+    }
+    
+    func loadData() {
+        labelTitle.text = todoText
+        labelDetails.text = todoDetails
+        priceField.text = purchasedPrice
+        
+        if let _ = existingLat, let _ = existingLon {
+            mapButton.isHidden = false
+        }
         
         if isPurchased {
-            NSLayoutConstraint.activate([
-                statusLabel.topAnchor.constraint(equalTo: detailsLabel.bottomAnchor, constant: 40),
-                statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-                statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
-            ])
-        } else {
-            NSLayoutConstraint.activate([
-                priceTextField.topAnchor.constraint(equalTo: detailsLabel.bottomAnchor, constant: 40),
-                priceTextField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                priceTextField.widthAnchor.constraint(equalToConstant: 200),
-                
-                claimButton.topAnchor.constraint(equalTo: priceTextField.bottomAnchor, constant: 20),
-                claimButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                claimButton.widthAnchor.constraint(equalToConstant: 220),
-                claimButton.heightAnchor.constraint(equalToConstant: 50)
-            ])
+            priceField.isEnabled = false
+            claimButton.setTitle("Already Claimed", for: .normal)
+            claimButton.isEnabled = false
+            claimButton.backgroundColor = .gray
         }
     }
     
     // MARK: - Actions
-    @objc func didTapClaim() {
-        guard let priceText = priceTextField.text, !priceText.isEmpty else {
-            // Show alert when price field is empty
-            let alert = UIAlertController(
-                title: "Missing Price",
-                message: "Please enter a price before marking as purchased.",
-                preferredStyle: .alert
-            )
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            present(alert, animated: true)
-            return
+    
+    @objc func didTapMap() {
+        if let lat = existingLat, let lon = existingLon {
+            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+            mapItem.name = "Purchase Location"
+            mapItem.openInMaps()
         }
-        
-        // Optional: Validate it's actually a valid number
-        guard Double(priceText) != nil else {
-            let alert = UIAlertController(
-                title: "Invalid Price",
-                message: "Please enter a valid number (e.g., 5.99).",
-                preferredStyle: .alert
-            )
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            present(alert, animated: true)
-            return
-        }
-        
-        onClaimCompleted?(priceText)
-        navigationController?.popViewController(animated: true)
     }
     
-    //@objc func didTapClaim() {
-        //guard let priceText = priceTextField.text, !priceText.isEmpty else { return }
-        //onClaimCompleted?(priceText)
-        //navigationController?.popViewController(animated: true)
-    //}
+    @objc func didTapClaim() {
+        guard let price = priceField.text, !price.isEmpty else { return }
+        
+        let lat = locationManager.location?.coordinate.latitude
+        let lon = locationManager.location?.coordinate.longitude
+        
+        onClaimCompleted?(price, lat, lon)
+    }
 }

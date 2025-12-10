@@ -26,7 +26,7 @@ class SummaryViewController: UIViewController {
 
     private let chartContainer: UIView = {
         let view = UIView()
-        view.backgroundColor = .clear // Changed to clear so we can draw on it
+        view.backgroundColor = .clear
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()

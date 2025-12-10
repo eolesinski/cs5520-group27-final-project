@@ -129,11 +129,14 @@ class TodoListViewController: UITableViewController {
         detailVC.todoDetails = selectedItem.details
         detailVC.isPurchased = selectedItem.isPurchased
         
+        detailVC.existingLat = selectedItem.latitude
+        detailVC.existingLon = selectedItem.longitude
+        
         if let price = selectedItem.purchasedPrice {
             detailVC.purchasedPrice = String(format: "%.2f", price)
         }
         
-        detailVC.onClaimCompleted = { [weak self] priceText in
+        detailVC.onClaimCompleted = { [weak self] priceText, lat, lon in
             guard let self = self else { return }
             
             var updateData: [String: Any] = [
@@ -143,6 +146,11 @@ class TodoListViewController: UITableViewController {
             
             if let priceValue = Double(priceText) {
                 updateData["purchasedPrice"] = priceValue
+            }
+            
+            if let latitude = lat, let longitude = lon {
+                updateData["latitude"] = latitude
+                updateData["longitude"] = longitude
             }
             
             self.db.collection("items").document(selectedItem.id).updateData(updateData)

@@ -1,10 +1,3 @@
-//
-//  MainScreenView.swift
-//  Group 27 Final Project
-//
-//
-//
-
 import UIKit
 
 class MainScreenView: UIView {

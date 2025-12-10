@@ -1,53 +1,86 @@
 import UIKit
+import FirebaseFirestore
+import FirebaseAuth
 
 class TodoListViewController: UITableViewController {
-
-    var items: [ToDoItem] = [
-        ToDoItem(id: UUID().uuidString, title: "Paper Towels", details: "Buy more papertowels for the kitchen"),
-        ToDoItem(id: UUID().uuidString, title: "Trash Bags", details: "Need 3.6 gallon trash bags for the bathroom"),
-        ToDoItem(id: UUID().uuidString, title: "Dishwasher Pods", details: "We usually get cascade plus")
-    ]
+    
+    var db = Firestore.firestore()
+    var items: [ToDoItem] = []
+    var currentUserName: String {
+        return Auth.auth().currentUser?.displayName ?? "Anonymous"
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "" // Empty nav title
+        title = "Shared List"
         
-        // Create header view above table
+        setupHeader()
+        listenToFirestore()
+        
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(title: "Sign Out", style: .plain, target: self, action: #selector(signOutTapped)),
+            UIBarButtonItem(image: UIImage(systemName: "chart.pie"), style: .plain, target: self, action: #selector(didTapSummary))
+        ]
+        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapAdd))
+        
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+    }
+    
+    func setupHeader() {
         let headerView = UIView(frame: CGRect(x: 0, y: 0, width: view.frame.width, height: 60))
         headerView.backgroundColor = .systemBackground
-        
-        let headerLabel = UILabel()
+        let headerLabel = UILabel(frame: headerView.bounds)
         headerLabel.text = "Group 'Need-To-Purchase' List"
         headerLabel.font = .boldSystemFont(ofSize: 20)
         headerLabel.textAlignment = .center
-        headerLabel.numberOfLines = 0
-        headerLabel.translatesAutoresizingMaskIntoConstraints = false
-        
         headerView.addSubview(headerLabel)
-        
-        NSLayoutConstraint.activate([
-            headerLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
-            headerLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            headerLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
-            headerLabel.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16)
-        ])
-        
         tableView.tableHeaderView = headerView
-        
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
-        
-        let signOutButton = UIBarButtonItem(title: "Sign Out", style: .plain, target: self, action: #selector(signOutTapped))
-        let summaryButton = UIBarButtonItem(image: UIImage(systemName: "chart.pie"), style: .plain, target: self, action: #selector(didTapSummary))
-        
-        navigationItem.rightBarButtonItems = [signOutButton, summaryButton]
-        
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .add,
-            target: self,
-            action: #selector(didTapAdd)
-        )
     }
     
+    // MARK: - FIRESTORE LOGIC
+    
+    func listenToFirestore() {
+        db.collection("items").addSnapshotListener { [weak self] snapshot, error in
+            guard let documents = snapshot?.documents, error == nil else {
+                print("Error fetching documents: \(error!)")
+                return
+            }
+            
+            self?.items = documents.map { doc in
+                return ToDoItem(dictionary: doc.data())
+            }
+            
+            DispatchQueue.main.async {
+                self?.tableView.reloadData()
+            }
+        }
+    }
+    
+    @objc func didTapAdd() {
+        let alert = UIAlertController(title: "New Item", message: "What does the house need?", preferredStyle: .alert)
+        alert.addTextField { $0.placeholder = "Item Name" }
+        alert.addTextField { $0.placeholder = "Details" }
+        
+        let addAction = UIAlertAction(title: "Add", style: .default) { [weak self] _ in
+            guard let title = alert.textFields?[0].text, !title.isEmpty,
+                  let details = alert.textFields?[1].text else { return }
+            
+            let newItemId = UUID().uuidString
+            let newItemData: [String: Any] = [
+                "id": newItemId,
+                "title": title,
+                "details": details,
+                "isPurchased": false
+            ]
+            
+            self?.db.collection("items").document(newItemId).setData(newItemData)
+        }
+        
+        alert.addAction(addAction)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alert, animated: true)
+    }
+
     // MARK: - Table View Data Source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -64,7 +97,7 @@ class TodoListViewController: UITableViewController {
             cell.textLabel?.textColor = .systemGreen
             cell.accessoryType = .checkmark
             if let price = item.purchasedPrice {
-                cell.textLabel?.text = "\(item.title) - $\(price)"
+                cell.textLabel?.text = "\(item.title) - $\(String(format: "%.2f", price))"
             }
         } else {
             cell.textLabel?.textColor = .black
@@ -73,54 +106,19 @@ class TodoListViewController: UITableViewController {
         
         return cell
     }
-
-    // MARK: - Sign Out Action
-
-    @objc func signOutTapped() {
-        let loginVC = LoginViewController()
-        let navController = UINavigationController(rootViewController: loginVC)
-        
-        if let sceneDelegate = view.window?.windowScene?.delegate as? SceneDelegate {
-            sceneDelegate.window?.rootViewController = navController
-        }
-    }
     
-    @objc func didTapSummary() {
-        let summaryVC = SummaryViewController()
-        navigationController?.pushViewController(summaryVC, animated: true)
-    }
-    
-    @objc func didTapAdd() {
-        let alert = UIAlertController(title: "New Item", message: "What does the house need?", preferredStyle: .alert)
-        
-        alert.addTextField { field in
-            field.placeholder = "Item Name (e.g. Eggs)"
-        }
-        
-        alert.addTextField { field in
-            field.placeholder = "Details (e.g. 1 Dozen, Organic)"
-        }
-        
-        let addAction = UIAlertAction(title: "Add", style: .default) { [weak self] _ in
-            guard let title = alert.textFields?[0].text, !title.isEmpty,
-                  let details = alert.textFields?[1].text else { return }
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            let itemToDelete = items[indexPath.row]
             
-            let newItem = ToDoItem(
-                id: UUID().uuidString,
-                title: title,
-                details: details
-            )
-            
-            self?.items.append(newItem)
-            self?.tableView.reloadData()
+            db.collection("items").document(itemToDelete.id).delete { error in
+                if let error = error {
+                    print("Error removing document: \(error)")
+                } else {
+                    print("Document successfully removed!")
+                }
+            }
         }
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
-        
-        alert.addAction(addAction)
-        alert.addAction(cancelAction)
-        
-        present(alert, animated: true)
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -129,17 +127,45 @@ class TodoListViewController: UITableViewController {
         
         detailVC.todoText = selectedItem.title
         detailVC.todoDetails = selectedItem.details
-        
         detailVC.isPurchased = selectedItem.isPurchased
-        detailVC.purchasedPrice = selectedItem.purchasedPrice
         
-        detailVC.onClaimCompleted = { [weak self] price in
-            self?.items[indexPath.row].isPurchased = true
-            self?.items[indexPath.row].purchasedPrice = price
-            self?.tableView.reloadData()
+        if let price = selectedItem.purchasedPrice {
+            detailVC.purchasedPrice = String(format: "%.2f", price)
+        }
+        
+        detailVC.onClaimCompleted = { [weak self] priceText in
+            guard let self = self else { return }
+            
+            var updateData: [String: Any] = [
+                "isPurchased": true,
+                "purchasedBy": self.currentUserName
+            ]
+            
+            if let priceValue = Double(priceText) {
+                updateData["purchasedPrice"] = priceValue
+            }
+            
+            self.db.collection("items").document(selectedItem.id).updateData(updateData)
+            
+            self.navigationController?.popViewController(animated: true)
         }
         
         navigationController?.pushViewController(detailVC, animated: true)
     }
+
+    @objc func didTapSummary() {
+        let summaryVC = SummaryViewController()
+        summaryVC.items = self.items
+        navigationController?.pushViewController(summaryVC, animated: true)
+    }
     
+    @objc func signOutTapped() {
+        do {
+            try Auth.auth().signOut()
+            self.dismiss(animated: true, completion: nil)
+            
+        } catch let signOutError as NSError {
+            print("Error signing out: %@", signOutError)
+        }
+    }
 }

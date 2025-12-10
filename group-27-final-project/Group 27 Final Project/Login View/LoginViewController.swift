@@ -1,4 +1,5 @@
 import UIKit
+import FirebaseAuth
 
 class LoginViewController: UIViewController {
 
@@ -8,13 +9,8 @@ class LoginViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
         let loginView = view as! LoginView
-        
-        // Go to Register screen
         loginView.buttonSignUp.addTarget(self, action: #selector(goToRegister), for: .touchUpInside)
-        
-        // Go to To-Do list after login
         loginView.buttonLogin.addTarget(self, action: #selector(loginTapped), for: .touchUpInside)
     }
 
@@ -24,11 +20,29 @@ class LoginViewController: UIViewController {
     }
 
     @objc func loginTapped() {
-        let todoVC = TodoListViewController()
-        let navController = UINavigationController(rootViewController: todoVC)
+        let loginView = view as! LoginView
         
-        if let sceneDelegate = view.window?.windowScene?.delegate as? SceneDelegate {
-            sceneDelegate.window?.rootViewController = navController
+        guard let email = loginView.textFieldEmail.text, !email.isEmpty,
+              let password = loginView.textFieldPassword.text, !password.isEmpty else {
+            print("Missing email or password")
+            return
+        }
+        
+        Auth.auth().signIn(withEmail: email, password: password) { [weak self] result, error in
+            if let error = error {
+                print("Login Error: \(error.localizedDescription)")
+                return
+            }
+            self?.goToMainApp()
+        }
+    }
+    
+    func goToMainApp() {
+        DispatchQueue.main.async {
+            let todoVC = TodoListViewController()
+            let navController = UINavigationController(rootViewController: todoVC)
+            navController.modalPresentationStyle = .fullScreen
+            self.present(navController, animated: true, completion: nil)
         }
     }
 }

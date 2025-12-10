@@ -1,13 +1,8 @@
-//
-//  SummaryViewController.swift
-//  Group 27 Final Project
-//
-//  Created by Kaden Casanave on 11/24/25.
-//
-
 import UIKit
 
 class SummaryViewController: UIViewController {
+
+    var items: [ToDoItem] = []
 
     // MARK: - UI Elements
 
@@ -22,7 +17,7 @@ class SummaryViewController: UIViewController {
 
     private let totalLabel: UILabel = {
         let label = UILabel()
-        label.text = "$125.50" // Placeholder data
+        label.text = "$0.00"
         label.font = .systemFont(ofSize: 42, weight: .bold)
         label.textColor = .systemGreen
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -31,19 +26,17 @@ class SummaryViewController: UIViewController {
 
     private let chartContainer: UIView = {
         let view = UIView()
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 100
+        view.backgroundColor = .clear // Changed to clear so we can draw on it
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-
-    private let chartLabel: UILabel = {
+    
+    private let centerLabel: UILabel = {
         let label = UILabel()
-        label.text = "Chart\nPlaceholder"
-        label.numberOfLines = 2
-        label.textAlignment = .center
-        label.font = .systemFont(ofSize: 14, weight: .light)
+        label.text = "Expenses"
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
         label.textColor = .gray
+        label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -64,14 +57,14 @@ class SummaryViewController: UIViewController {
         title = "Spending Summary"
 
         setupUI()
-        setupMockData()
+        calculateAndDisplayTotals()
     }
 
     private func setupUI() {
         view.addSubview(titleLabel)
         view.addSubview(totalLabel)
         view.addSubview(chartContainer)
-        chartContainer.addSubview(chartLabel)
+        chartContainer.addSubview(centerLabel)
         view.addSubview(usersStackView)
 
         NSLayoutConstraint.activate([
@@ -86,8 +79,8 @@ class SummaryViewController: UIViewController {
             chartContainer.widthAnchor.constraint(equalToConstant: 200),
             chartContainer.heightAnchor.constraint(equalToConstant: 200),
             
-            chartLabel.centerXAnchor.constraint(equalTo: chartContainer.centerXAnchor),
-            chartLabel.centerYAnchor.constraint(equalTo: chartContainer.centerYAnchor),
+            centerLabel.centerXAnchor.constraint(equalTo: chartContainer.centerXAnchor),
+            centerLabel.centerYAnchor.constraint(equalTo: chartContainer.centerYAnchor),
 
             usersStackView.topAnchor.constraint(equalTo: chartContainer.bottomAnchor, constant: 40),
             usersStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
@@ -95,19 +88,110 @@ class SummaryViewController: UIViewController {
         ])
     }
 
-    // MARK: - Data Population
+    // MARK: - Logic & Drawing
     
-    private func setupMockData() {
-        let mockUsers = [
-            ("Alice", "$50.00", UIColor.systemBlue),
-            ("Bob", "$25.50", UIColor.systemOrange),
-            ("Charlie", "$50.00", UIColor.systemPurple)
-        ]
-
-        for user in mockUsers {
-            let row = makeUserRow(name: user.0, amount: user.1, color: user.2)
-            usersStackView.addArrangedSubview(row)
+    private func calculateAndDisplayTotals() {
+        var userTotals: [String: Double] = [:]
+        var grandTotal: Double = 0.0
+        
+        for item in items {
+            if item.isPurchased, let price = item.purchasedPrice, let user = item.purchasedBy {
+                userTotals[user, default: 0] += price
+                grandTotal += price
+            }
         }
+        
+        totalLabel.text = "$\(String(format: "%.2f", grandTotal))"
+        
+        usersStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        if userTotals.isEmpty {
+            let emptyLabel = UILabel()
+            emptyLabel.text = "No purchases claimed yet."
+            emptyLabel.textAlignment = .center
+            emptyLabel.textColor = .gray
+            usersStackView.addArrangedSubview(emptyLabel)
+            
+            drawPieChart(segments: [])
+        } else {
+            let sortedUsers = userTotals.sorted { $0.value > $1.value }
+            
+            var index = 0
+            var segments: [(value: Double, color: UIColor)] = []
+            
+            for (user, amount) in sortedUsers {
+                let color = getColor(for: index)
+                let amountString = "$\(String(format: "%.2f", amount))"
+                
+         
+                let row = makeUserRow(name: user, amount: amountString, color: color)
+                usersStackView.addArrangedSubview(row)
+                
+            
+                segments.append((value: amount, color: color))
+                
+                index += 1
+            }
+            
+     
+            drawPieChart(segments: segments)
+        }
+    }
+    
+    private func drawPieChart(segments: [(value: Double, color: UIColor)]) {
+        chartContainer.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        
+
+        let center = CGPoint(x: 100, y: 100)
+        let radius: CGFloat = 80
+        let lineWidth: CGFloat = 40
+        
+        var startAngle: CGFloat = -CGFloat.pi / 2
+        
+        let totalValue = segments.reduce(0) { $0 + $1.value }
+        
+        if totalValue == 0 {
+            let bgPath = UIBezierPath(arcCenter: center, radius: radius, startAngle: 0, endAngle: 2 * .pi, clockwise: true)
+            let layer = CAShapeLayer()
+            layer.path = bgPath.cgPath
+            layer.strokeColor = UIColor.systemGray5.cgColor
+            layer.fillColor = UIColor.clear.cgColor
+            layer.lineWidth = lineWidth
+            chartContainer.layer.addSublayer(layer)
+            return
+        }
+        
+ 
+        for segment in segments {
+            let percentage = segment.value / totalValue
+            let endAngle = startAngle + (CGFloat(percentage) * 2 * .pi)
+            
+            let path = UIBezierPath(arcCenter: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: true)
+            
+            let sliceLayer = CAShapeLayer()
+            sliceLayer.path = path.cgPath
+            sliceLayer.strokeColor = segment.color.cgColor
+            sliceLayer.fillColor = UIColor.clear.cgColor
+            sliceLayer.lineWidth = lineWidth
+            sliceLayer.strokeEnd = 1.0
+            
+            let animation = CABasicAnimation(keyPath: "strokeEnd")
+            animation.fromValue = 0.0
+            animation.toValue = 1.0
+            animation.duration = 0.7
+            sliceLayer.add(animation, forKey: "drawStroke")
+            
+            chartContainer.layer.addSublayer(sliceLayer)
+            
+            startAngle = endAngle
+        }
+        
+        chartContainer.addSubview(centerLabel)
+    }
+    
+    private func getColor(for index: Int) -> UIColor {
+        let colors: [UIColor] = [.systemBlue, .systemOrange, .systemPurple, .systemRed, .systemTeal, .systemGreen]
+        return colors[index % colors.count]
     }
 
     private func makeUserRow(name: String, amount: String, color: UIColor) -> UIView {

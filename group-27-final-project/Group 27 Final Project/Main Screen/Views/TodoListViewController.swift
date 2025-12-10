@@ -10,20 +10,42 @@ class TodoListViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Group 'Need-To-Purchase' List"
+        title = "" // Empty nav title
+        
+        // Create header view above table
+        let headerView = UIView(frame: CGRect(x: 0, y: 0, width: view.frame.width, height: 60))
+        headerView.backgroundColor = .systemBackground
+        
+        let headerLabel = UILabel()
+        headerLabel.text = "Group 'Need-To-Purchase' List"
+        headerLabel.font = .boldSystemFont(ofSize: 20)
+        headerLabel.textAlignment = .center
+        headerLabel.numberOfLines = 0
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        headerView.addSubview(headerLabel)
+        
+        NSLayoutConstraint.activate([
+            headerLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
+            headerLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            headerLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
+            headerLabel.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16)
+        ])
+        
+        tableView.tableHeaderView = headerView
         
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         
-            let signOutButton = UIBarButtonItem(title: "Sign Out", style: .plain, target: self, action: #selector(signOutTapped))
-            let summaryButton = UIBarButtonItem(image: UIImage(systemName: "chart.pie"), style: .plain, target: self, action: #selector(didTapSummary))
-            
-            navigationItem.rightBarButtonItems = [signOutButton, summaryButton]
+        let signOutButton = UIBarButtonItem(title: "Sign Out", style: .plain, target: self, action: #selector(signOutTapped))
+        let summaryButton = UIBarButtonItem(image: UIImage(systemName: "chart.pie"), style: .plain, target: self, action: #selector(didTapSummary))
+        
+        navigationItem.rightBarButtonItems = [signOutButton, summaryButton]
         
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-                barButtonSystemItem: .add,
-                target: self,
-                action: #selector(didTapAdd)
-            )
+            barButtonSystemItem: .add,
+            target: self,
+            action: #selector(didTapAdd)
+        )
     }
     
     // MARK: - Table View Data Source
@@ -64,42 +86,42 @@ class TodoListViewController: UITableViewController {
     }
     
     @objc func didTapSummary() {
-            let summaryVC = SummaryViewController()
-            navigationController?.pushViewController(summaryVC, animated: true)
-        }
+        let summaryVC = SummaryViewController()
+        navigationController?.pushViewController(summaryVC, animated: true)
+    }
     
     @objc func didTapAdd() {
-            let alert = UIAlertController(title: "New Item", message: "What does the house need?", preferredStyle: .alert)
-            
-            alert.addTextField { field in
-                field.placeholder = "Item Name (e.g. Eggs)"
-            }
-            
-            alert.addTextField { field in
-                field.placeholder = "Details (e.g. 1 Dozen, Organic)"
-            }
-            
-            let addAction = UIAlertAction(title: "Add", style: .default) { [weak self] _ in
-                guard let title = alert.textFields?[0].text, !title.isEmpty,
-                      let details = alert.textFields?[1].text else { return }
-                
-                let newItem = ToDoItem(
-                    id: UUID().uuidString,
-                    title: title,
-                    details: details
-                )
-                
-                self?.items.append(newItem)
-                self?.tableView.reloadData()
-            }
-            
-            let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
-            
-            alert.addAction(addAction)
-            alert.addAction(cancelAction)
-            
-            present(alert, animated: true)
+        let alert = UIAlertController(title: "New Item", message: "What does the house need?", preferredStyle: .alert)
+        
+        alert.addTextField { field in
+            field.placeholder = "Item Name (e.g. Eggs)"
         }
+        
+        alert.addTextField { field in
+            field.placeholder = "Details (e.g. 1 Dozen, Organic)"
+        }
+        
+        let addAction = UIAlertAction(title: "Add", style: .default) { [weak self] _ in
+            guard let title = alert.textFields?[0].text, !title.isEmpty,
+                  let details = alert.textFields?[1].text else { return }
+            
+            let newItem = ToDoItem(
+                id: UUID().uuidString,
+                title: title,
+                details: details
+            )
+            
+            self?.items.append(newItem)
+            self?.tableView.reloadData()
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+        
+        alert.addAction(addAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true)
+    }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let selectedItem = items[indexPath.row]

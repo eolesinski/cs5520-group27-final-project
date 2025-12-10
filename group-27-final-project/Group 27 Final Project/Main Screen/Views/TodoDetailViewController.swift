@@ -128,10 +128,38 @@ class TodoDetailViewController: UIViewController {
     }
     
     // MARK: - Actions
-    
     @objc func didTapClaim() {
-        guard let priceText = priceTextField.text, !priceText.isEmpty else { return }
+        guard let priceText = priceTextField.text, !priceText.isEmpty else {
+            // Show alert when price field is empty
+            let alert = UIAlertController(
+                title: "Missing Price",
+                message: "Please enter a price before marking as purchased.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        
+        // Optional: Validate it's actually a valid number
+        guard Double(priceText) != nil else {
+            let alert = UIAlertController(
+                title: "Invalid Price",
+                message: "Please enter a valid number (e.g., 5.99).",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        
         onClaimCompleted?(priceText)
         navigationController?.popViewController(animated: true)
     }
+    
+    //@objc func didTapClaim() {
+        //guard let priceText = priceTextField.text, !priceText.isEmpty else { return }
+        //onClaimCompleted?(priceText)
+        //navigationController?.popViewController(animated: true)
+    //}
 }
